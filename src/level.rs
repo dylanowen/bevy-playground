@@ -9,7 +9,7 @@ impl<const WIDTH: usize, const HEIGHT: usize> Chunk<WIDTH, HEIGHT> {
         let mut grid = [[false; WIDTH]; HEIGHT];
         for y in 0..HEIGHT {
             for x in 0..WIDTH {
-                grid[y][x] = rng.gen_bool(0.3);
+                grid[y][x] = rng.gen_bool(0.5);
             }
         }
 

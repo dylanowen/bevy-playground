@@ -4,9 +4,9 @@ mod level;
 use crate::camera::{camera_system, focus_camera};
 use crate::level::Chunk;
 
-
 use bevy::prelude::*;
 
+use std::f32::consts::FRAC_PI_2;
 use wasm_bindgen::prelude::*;
 
 #[derive(Default)]
@@ -54,26 +54,46 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     });
 
     // build our map
-    let tile_handle = asset_server.load("grass-tile.glb#Scene0");
+    let grass_handle = asset_server.load("models.glb#Scene0");
+    let wall_handle = asset_server.load("models.glb#Scene1");
 
-    const WIDTH: usize = 20;
-    const HEIGHT: usize = 20;
+    const WIDTH: usize = 10;
+    const HEIGHT: usize = 10;
     let chunk = Chunk::<WIDTH, HEIGHT>::random(&mut rand::thread_rng());
 
+    let x_offset = (WIDTH / 2) as f32;
+    let z_offset = (HEIGHT / 2) as f32;
     for z in 0..HEIGHT {
         for x in 0..WIDTH {
+            let transform = Transform::from_xyz(x as f32 - x_offset, 0., z as f32 - z_offset);
+
+            for (dx, dz, rotate) in [(1, 0, false), (0, 1, true)].iter() {
+                let nx = x + dx;
+                let nz = z + dz;
+                if nx < WIDTH && nz < HEIGHT {
+                    if chunk.grid[z][x] != chunk.grid[nz][nx] {
+                        // todo this is gross
+                        let wall_transform = if *rotate {
+                            let mut wall_transform = transform.clone();
+                            wall_transform.rotate(Quat::from_rotation_y(-FRAC_PI_2));
+                            wall_transform
+                        } else {
+                            Transform::from_xyz(nx as f32 - x_offset, 0., nz as f32 - z_offset)
+                        };
+
+                        commands
+                            .spawn_bundle((wall_transform, GlobalTransform::identity()))
+                            .with_children(|tile| {
+                                tile.spawn_scene(wall_handle.clone());
+                            });
+                    }
+                }
+            }
             if chunk.grid[z][x] {
                 commands
-                    .spawn_bundle((
-                        Transform::from_xyz(
-                            x as f32 - (WIDTH / 2) as f32,
-                            0.,
-                            z as f32 - (HEIGHT / 2) as f32,
-                        ),
-                        GlobalTransform::identity(),
-                    ))
+                    .spawn_bundle((transform, GlobalTransform::identity()))
                     .with_children(|tile| {
-                        tile.spawn_scene(tile_handle.clone());
+                        tile.spawn_scene(grass_handle.clone());
                     });
             }
         }
