@@ -2,6 +2,7 @@ use bevy::math::Mat2;
 use bevy::math::Vec3Swizzles;
 use bevy::prelude::*;
 use bevy::render::camera::Camera;
+use bevy::render::render_graph::base::camera::CAMERA_3D;
 
 pub const DISTANCE: f32 = 10.;
 const PITCH_HEIGHT: f32 = DISTANCE;
@@ -21,12 +22,17 @@ pub fn camera_system(
         rotation += 0.1;
     }
 
-    if rotation != 0. {
-        for (mut transform, _) in camera_query.iter_mut() {
-            let current_offset: Vec2 = transform.translation.xz() - focus.xz();
-            let new_offset = Mat2::from_angle(rotation) * current_offset;
+    // Some("".to_string()).as_
 
-            focus_camera(new_offset, focus, &mut transform);
+    if rotation != 0. {
+        for (mut transform, camera) in camera_query.iter_mut() {
+            // make sure this is our 3d camera
+            if camera.name.as_deref() == Some(CAMERA_3D) {
+                let current_offset: Vec2 = transform.translation.xz() - focus.xz();
+                let new_offset = Mat2::from_angle(rotation) * current_offset;
+
+                focus_camera(new_offset, focus, &mut transform);
+            }
         }
     }
 }

@@ -11,6 +11,13 @@ crate-type = ["cdylib", "rlib"]
 [[bin]]
 name = "bevy-playground"
 
+# Enable optimizations for dependencies (incl. Bevy), but not for our code:
+[profile.dev.package."*"]
+opt-level = 3
+
+# Maybe also enable only a small amount of optimization for our code:
+[profile.dev]
+opt-level = 1
 
 [dependencies]
 log = "0.4"

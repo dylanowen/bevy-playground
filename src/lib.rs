@@ -1,4 +1,5 @@
 mod camera;
+mod debug;
 mod level;
 
 use crate::camera::{camera_system, focus_camera};
@@ -6,6 +7,7 @@ use crate::level::Chunk;
 
 use bevy::prelude::*;
 
+use crate::debug::Debug;
 use std::f32::consts::FRAC_PI_2;
 use wasm_bindgen::prelude::*;
 
@@ -18,6 +20,8 @@ pub fn run() {
         .add_startup_system(setup.system())
         .add_system(camera_system.system())
         .add_system(bevy::input::system::exit_on_esc_system.system())
+        // diagnostics
+        .add_plugin(Debug::default())
         .run();
 }
 
@@ -35,7 +39,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // Tell the asset server to watch for asset changes on disk:
     asset_server.watch_for_changes().unwrap();
 
-    // build our camera
+    // build our main camera
     let mut camera_transform = Transform::default();
     focus_camera(
         Vec2::new(0., camera::DISTANCE),
@@ -47,6 +51,9 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..Default::default()
     });
 
+    // add a ui camera
+    commands.spawn_bundle(UiCameraBundle::default());
+
     // add some light
     commands.spawn_bundle(LightBundle {
         transform: Transform::from_xyz(4.0, 5.0, 4.0),
@@ -57,8 +64,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     let grass_handle = asset_server.load("models.glb#Scene0");
     let wall_handle = asset_server.load("models.glb#Scene1");
 
-    const WIDTH: usize = 10;
-    const HEIGHT: usize = 10;
+    const WIDTH: usize = 40;
+    const HEIGHT: usize = 40;
     let chunk = Chunk::<WIDTH, HEIGHT>::random(&mut rand::thread_rng());
 
     let x_offset = (WIDTH / 2) as f32;
