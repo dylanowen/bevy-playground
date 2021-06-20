@@ -8,6 +8,10 @@ use crate::level::Chunk;
 use bevy::prelude::*;
 
 use crate::debug::Debug;
+
+use bevy::input::system::exit_on_esc_system;
+use bevy::render::camera::Camera;
+use bevy::render::render_graph::base::camera::CAMERA_3D;
 use std::f32::consts::FRAC_PI_2;
 use wasm_bindgen::prelude::*;
 
@@ -19,7 +23,8 @@ pub fn run() {
     default_plugins(&mut App::build())
         .add_startup_system(setup.system())
         .add_system(camera_system.system())
-        .add_system(bevy::input::system::exit_on_esc_system.system())
+        .add_system(exit_on_esc_system.system())
+        .add_system(light.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
@@ -32,7 +37,10 @@ fn default_plugins(builder: &mut AppBuilder) -> &mut AppBuilder {
 
 #[cfg(not(target_arch = "wasm32"))]
 fn default_plugins(builder: &mut AppBuilder) -> &mut AppBuilder {
-    builder.add_plugins(DefaultPlugins)
+    builder
+        .add_plugins(DefaultPlugins)
+        // diagnostics
+        .add_plugin(bevy_prototype_debug_lines::DebugLinesPlugin)
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -55,8 +63,11 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(UiCameraBundle::default());
 
     // add some light
-    commands.spawn_bundle(LightBundle {
-        transform: Transform::from_xyz(4.0, 5.0, 4.0),
+    commands.spawn_bundle(MouseLightBundle {
+        light: LightBundle {
+            transform: Transform::from_xyz(4.0, 5.0, 4.0),
+            ..Default::default()
+        },
         ..Default::default()
     });
 
@@ -102,6 +113,81 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     .with_children(|tile| {
                         tile.spawn_scene(grass_handle.clone());
                     });
+            }
+        }
+    }
+}
+
+#[derive(Default)]
+struct MouseLight;
+
+#[derive(Default, Bundle)]
+struct MouseLightBundle<B: Bundle> {
+    tag: MouseLight,
+    #[bundle]
+    light: B,
+}
+
+fn light(
+    windows: Res<Windows>,
+    mut query: QuerySet<(
+        Query<(&mut Transform, &MouseLight)>,
+        Query<(&GlobalTransform, &Camera)>,
+    )>,
+) {
+    let window = windows.get_primary().unwrap();
+
+    if let Some(cursor_position) = window.cursor_position() {
+        // get the inverse of our camera view matrix and our camera position
+        let maybe_inv_camera_projection = query.q1().iter().find_map(|(transform, camera)| {
+            if camera.name.as_deref() == Some(CAMERA_3D) {
+                let camera_position = transform.compute_matrix();
+                let projection: Mat4 = camera.projection_matrix;
+
+                Some(camera_position * projection.inverse())
+            } else {
+                None
+            }
+        });
+
+        if let Some(inv_camera_projection) = maybe_inv_camera_projection {
+            // transform our cursor position into our normalized device coordinates
+            let screen_size = Vec2::new(window.width(), window.height());
+            let normalized_cursor = (cursor_position / screen_size) * 2. - Vec2::splat(1.);
+
+            // borrowed from https://github.com/aevyrie/bevy_mod_raycast/blob/master/src/primitives.rs
+            // deal with near and far to support ortho cameras
+            let cursor_near_gpu = normalized_cursor.extend(-1.);
+            let cursor_far_gpu = normalized_cursor.extend(1.);
+
+            let cursor_near_world = inv_camera_projection.project_point3(cursor_near_gpu);
+            let cursor_far_world = inv_camera_projection.project_point3(cursor_far_gpu);
+
+            // in world coordinates, a ray from our near to far plane through our cursor
+            let cursor_ray = cursor_far_world - cursor_near_world;
+
+            // get the negative normal of our ground to our near world cursor
+            let ground_near_normal = Vec3::new(0., -cursor_near_world.y, 0.);
+
+            // Using the dot product we have
+            // ground_near_normal · cursor_ray = |cursor_ray| |ground_near_normal| cos(θ)
+            // Using sohCAHtoa we have
+            // cos(θ) = |ground_near_normal| / |ray_to_ground|
+            // since we want |ray_to_ground| we can do
+            // |ray_to_ground| = |ground_near_normal| / ( ground_near_normal · cursor_ray / |cursor_ray| |ground_near_normal|)
+            // which reduces to
+            // |ray_to_ground| = (|ground_near_normal|² * |cursor_ray|) /  (ground_near_normal · cursor_ray)
+            let distance_to_ground = (cursor_near_world.y.powf(2.) * cursor_ray.length())
+                / ground_near_normal.dot(cursor_ray);
+            let ray_to_ground = cursor_ray.normalize() * distance_to_ground;
+
+            let ground_intersection = ray_to_ground + cursor_near_world;
+
+            // place our light slightly above the ground
+            let light_location = Vec3::new(ground_intersection.x, 0.1, ground_intersection.z);
+
+            for (mut transform, _) in query.q0_mut().iter_mut() {
+                transform.translation = light_location.clone();
             }
         }
     }

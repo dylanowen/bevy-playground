@@ -22,8 +22,6 @@ pub fn camera_system(
         rotation += 0.1;
     }
 
-    // Some("".to_string()).as_
-
     if rotation != 0. {
         for (mut transform, camera) in camera_query.iter_mut() {
             // make sure this is our 3d camera
