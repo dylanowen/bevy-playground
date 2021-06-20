@@ -88,23 +88,21 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             for (dx, dz, rotate) in [(1, 0, false), (0, 1, true)].iter() {
                 let nx = x + dx;
                 let nz = z + dz;
-                if nx < WIDTH && nz < HEIGHT {
-                    if chunk.grid[z][x] != chunk.grid[nz][nx] {
-                        // todo this is gross
-                        let wall_transform = if *rotate {
-                            let mut wall_transform = transform.clone();
-                            wall_transform.rotate(Quat::from_rotation_y(-FRAC_PI_2));
-                            wall_transform
-                        } else {
-                            Transform::from_xyz(nx as f32 - x_offset, 0., nz as f32 - z_offset)
-                        };
+                if nx < WIDTH && nz < HEIGHT && chunk.grid[z][x] != chunk.grid[nz][nx] {
+                    // todo this is gross
+                    let wall_transform = if *rotate {
+                        let mut wall_transform = transform;
+                        wall_transform.rotate(Quat::from_rotation_y(-FRAC_PI_2));
+                        wall_transform
+                    } else {
+                        Transform::from_xyz(nx as f32 - x_offset, 0., nz as f32 - z_offset)
+                    };
 
-                        commands
-                            .spawn_bundle((wall_transform, GlobalTransform::identity()))
-                            .with_children(|tile| {
-                                tile.spawn_scene(wall_handle.clone());
-                            });
-                    }
+                    commands
+                        .spawn_bundle((wall_transform, GlobalTransform::identity()))
+                        .with_children(|tile| {
+                            tile.spawn_scene(wall_handle.clone());
+                        });
                 }
             }
             if chunk.grid[z][x] {
@@ -128,6 +126,7 @@ struct MouseLightBundle<B: Bundle> {
     light: B,
 }
 
+#[allow(clippy::type_complexity)]
 fn light(
     windows: Res<Windows>,
     mut query: QuerySet<(
@@ -187,7 +186,7 @@ fn light(
             let light_location = Vec3::new(ground_intersection.x, 0.1, ground_intersection.z);
 
             for (mut transform, _) in query.q0_mut().iter_mut() {
-                transform.translation = light_location.clone();
+                transform.translation = light_location;
             }
         }
     }
