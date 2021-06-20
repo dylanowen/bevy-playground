@@ -1,11 +1,13 @@
 mod camera;
 mod debug;
 mod level;
+mod player;
 
-use crate::camera::{camera_system, focus_camera};
+use crate::camera::{camera_system, focus_camera, OverheadCam, UiCam};
 use crate::level::Chunk;
 
 use bevy::prelude::*;
+use camera::{mouse_look_system, switch_camera_view_system};
 
 use crate::debug::Debug;
 
@@ -25,6 +27,8 @@ pub fn run() {
         .add_system(camera_system.system())
         .add_system(exit_on_esc_system.system())
         .add_system(light.system())
+        .add_system(mouse_look_system.system())
+        .add_system(switch_camera_view_system.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
@@ -57,10 +61,12 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands.spawn_bundle(PerspectiveCameraBundle {
         transform: camera_transform,
         ..Default::default()
-    });
+    })
+    .insert(OverheadCam);
 
     // add a ui camera
-    commands.spawn_bundle(UiCameraBundle::default());
+    commands.spawn_bundle(UiCameraBundle::default())
+        .insert(UiCam);
 
     // add some light
     commands.spawn_bundle(MouseLightBundle {
