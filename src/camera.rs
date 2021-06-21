@@ -1,10 +1,9 @@
 use bevy::input::mouse::MouseMotion;
 use bevy::math::Mat2;
 use bevy::math::Vec3Swizzles;
-use bevy::prelude::*;
+use bevy::{prelude::*, transform};
 use bevy::render::camera::Camera;
 use bevy::render::render_graph::base::camera::CAMERA_3D;
-use crate::player::Player;
 
 pub const DISTANCE: f32 = 10.;
 const PITCH_HEIGHT: f32 = DISTANCE;
@@ -17,6 +16,8 @@ pub struct FlyCam {
 }
 pub struct UiCam;
 pub struct OverheadCam;
+
+const MOVE_SENSITIVITY: f32 = 0.2;
 
 pub fn camera_system(
     // mut commands: Commands,
@@ -84,8 +85,8 @@ pub fn switch_camera_view_system(
     mut query: Query<(Entity, &OverheadCam, Option<&FlyCam>)>
 ) {
     if keyboard_input.just_pressed(KeyCode::Insert) {
-        let (ent, cam, flycam) = query.single_mut().unwrap();
-        if let Some(flycam) = flycam {
+        let (ent, _cam, flycam) = query.single_mut().unwrap();
+        if let Some(_flycam) = flycam {
             //flycam is already present
             commands.entity(ent).remove::<FlyCam>();
         } else {
@@ -98,4 +99,44 @@ pub fn switch_camera_view_system(
             });
         }   
     }
+}
+
+pub fn camera_move_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    mut query: Query<&mut Transform, With<FlyCam>>
+) {
+    for mut cam_transform in query.iter_mut() {
+        let mut move_vec = Vec3::splat(0.0);
+        if keyboard_input.pressed(KeyCode::W) {
+            move_vec.z -= 1.0 * MOVE_SENSITIVITY;
+        }
+        if keyboard_input.pressed(KeyCode::S) {
+            move_vec.z += 1.0 * MOVE_SENSITIVITY;
+        }
+        if keyboard_input.pressed(KeyCode::A) {
+            move_vec.x -= 1.0 * MOVE_SENSITIVITY;
+        }
+        if keyboard_input.pressed(KeyCode::D) {
+            move_vec.x += 1.0 * MOVE_SENSITIVITY;
+        }
+        if keyboard_input.pressed(KeyCode::Space) {
+            cam_transform.translation.y += 1.0 * MOVE_SENSITIVITY;
+        }
+        if keyboard_input.pressed(KeyCode::LShift) {
+            cam_transform.translation.y -= 1.0 * MOVE_SENSITIVITY;
+        }
+
+        let rotated_direction = rotate_vec3_by_quat(cam_transform.rotation, move_vec);
+        cam_transform.translation.x += rotated_direction.x;
+        cam_transform.translation.y += rotated_direction.y;
+        cam_transform.translation.z += rotated_direction.z;
+    }
+}
+
+fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
+    let quat_vec = Vec3::new(quat.x, quat.y, quat.z);
+    let rotated_wanna_go = 2.0 * quat_vec.dot(vec) * quat_vec
+        + (quat.w * quat.w - quat_vec.dot(quat_vec)) * vec
+        + 2.0 * quat.w * quat_vec.cross(vec);
+        return rotated_wanna_go;
 }

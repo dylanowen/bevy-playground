@@ -3,7 +3,7 @@ mod debug;
 mod level;
 mod player;
 
-use crate::camera::{camera_system, focus_camera, OverheadCam, UiCam};
+use crate::camera::{camera_system, focus_camera, OverheadCam, UiCam, camera_move_system};
 use crate::level::Chunk;
 
 use bevy::prelude::*;
@@ -29,6 +29,7 @@ pub fn run() {
         .add_system(light.system())
         .add_system(mouse_look_system.system())
         .add_system(switch_camera_view_system.system())
+        .add_system(camera_move_system.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
