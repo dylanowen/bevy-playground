@@ -1,21 +1,20 @@
-mod camera;
+use std::f32::consts::FRAC_PI_2;
+
+use bevy::input::system::exit_on_esc_system;
+use bevy::prelude::*;
+use wasm_bindgen::prelude::*;
+
+use crate::aim_system::{aim_system, MouseLightBundle};
+use crate::debug::Debug;
+use crate::level::Chunk;
+use crate::player::Player;
+use crate::view_system::{UiCam, ViewPlugin};
+
+mod aim_system;
 mod debug;
 mod level;
 mod player;
-
-use crate::camera::{camera_system, focus_camera, OverheadCam, UiCam, camera_move_system};
-use crate::level::Chunk;
-
-use bevy::prelude::*;
-use camera::{mouse_look_system, switch_camera_view_system};
-
-use crate::debug::Debug;
-
-use bevy::input::system::exit_on_esc_system;
-use bevy::render::camera::Camera;
-use bevy::render::render_graph::base::camera::CAMERA_3D;
-use std::f32::consts::FRAC_PI_2;
-use wasm_bindgen::prelude::*;
+mod view_system;
 
 #[derive(Default)]
 struct Game {}
@@ -23,13 +22,10 @@ struct Game {}
 #[wasm_bindgen]
 pub fn run() {
     default_plugins(&mut App::build())
-        .add_startup_system(setup.system())
-        .add_system(camera_system.system())
         .add_system(exit_on_esc_system.system())
-        .add_system(light.system())
-        .add_system(mouse_look_system.system())
-        .add_system(switch_camera_view_system.system())
-        .add_system(camera_move_system.system())
+        .add_startup_system(setup.system())
+        .add_plugin(ViewPlugin::default())
+        .add_system(aim_system.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
@@ -49,24 +45,12 @@ fn default_plugins(builder: &mut AppBuilder) -> &mut AppBuilder {
 }
 
 fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
-    // Tell the asset server to watch for asset changes on disk:
+    // Tell the asset server to watch for asset changes on disk (I'm not sure this actually works)
     asset_server.watch_for_changes().unwrap();
 
-    // build our main camera
-    let mut camera_transform = Transform::default();
-    focus_camera(
-        Vec2::new(0., camera::DISTANCE),
-        Vec3::splat(0.),
-        &mut camera_transform,
-    );
-    commands.spawn_bundle(PerspectiveCameraBundle {
-        transform: camera_transform,
-        ..Default::default()
-    })
-    .insert(OverheadCam);
-
     // add a ui camera
-    commands.spawn_bundle(UiCameraBundle::default())
+    commands
+        .spawn_bundle(UiCameraBundle::default())
         .insert(UiCam);
 
     // add some light
@@ -78,13 +62,22 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..Default::default()
     });
 
-    // build our map
-    let grass_handle = asset_server.load("models.glb#Scene0");
-    let wall_handle = asset_server.load("models.glb#Scene1");
+    // add our character
+    let character_handle = asset_server.load("models.glb#Scene0");
+    commands
+        .spawn_bundle((Transform::default(), GlobalTransform::identity()))
+        .with_children(|tile| {
+            tile.spawn_scene(character_handle.clone());
+        })
+        .insert(Player);
 
-    const WIDTH: usize = 40;
-    const HEIGHT: usize = 40;
-    let chunk = Chunk::<WIDTH, HEIGHT>::random(&mut rand::thread_rng());
+    // build our map
+    let grass_handle = asset_server.load("models.glb#Scene1");
+    let wall_handle = asset_server.load("models.glb#Scene2");
+
+    const WIDTH: usize = 20;
+    const HEIGHT: usize = 20;
+    let chunk = Chunk::<WIDTH, HEIGHT>::arena();
 
     let x_offset = (WIDTH / 2) as f32;
     let z_offset = (HEIGHT / 2) as f32;
@@ -118,82 +111,6 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     .with_children(|tile| {
                         tile.spawn_scene(grass_handle.clone());
                     });
-            }
-        }
-    }
-}
-
-#[derive(Default)]
-struct MouseLight;
-
-#[derive(Default, Bundle)]
-struct MouseLightBundle<B: Bundle> {
-    tag: MouseLight,
-    #[bundle]
-    light: B,
-}
-
-#[allow(clippy::type_complexity)]
-fn light(
-    windows: Res<Windows>,
-    mut query: QuerySet<(
-        Query<(&mut Transform, &MouseLight)>,
-        Query<(&GlobalTransform, &Camera)>,
-    )>,
-) {
-    let window = windows.get_primary().unwrap();
-
-    if let Some(cursor_position) = window.cursor_position() {
-        // get the inverse of our camera view matrix and our camera position
-        let maybe_inv_camera_projection = query.q1().iter().find_map(|(transform, camera)| {
-            if camera.name.as_deref() == Some(CAMERA_3D) {
-                let camera_position = transform.compute_matrix();
-                let projection: Mat4 = camera.projection_matrix;
-
-                Some(camera_position * projection.inverse())
-            } else {
-                None
-            }
-        });
-
-        if let Some(inv_camera_projection) = maybe_inv_camera_projection {
-            // transform our cursor position into our normalized device coordinates
-            let screen_size = Vec2::new(window.width(), window.height());
-            let normalized_cursor = (cursor_position / screen_size) * 2. - Vec2::splat(1.);
-
-            // borrowed from https://github.com/aevyrie/bevy_mod_raycast/blob/master/src/primitives.rs
-            // deal with near and far to support ortho cameras
-            let cursor_near_gpu = normalized_cursor.extend(-1.);
-            let cursor_far_gpu = normalized_cursor.extend(1.);
-
-            let cursor_near_world = inv_camera_projection.project_point3(cursor_near_gpu);
-            let cursor_far_world = inv_camera_projection.project_point3(cursor_far_gpu);
-
-            // in world coordinates, a ray from our near to far plane through our cursor
-            let cursor_ray = cursor_far_world - cursor_near_world;
-
-            // get the negative normal of our ground to our near world cursor
-            let ground_near_normal = Vec3::new(0., -cursor_near_world.y, 0.);
-
-            // Using the dot product we have
-            // ground_near_normal · cursor_ray = |cursor_ray| |ground_near_normal| cos(θ)
-            // Using sohCAHtoa we have
-            // cos(θ) = |ground_near_normal| / |ray_to_ground|
-            // since we want |ray_to_ground| we can do
-            // |ray_to_ground| = |ground_near_normal| / ( ground_near_normal · cursor_ray / |cursor_ray| |ground_near_normal|)
-            // which reduces to
-            // |ray_to_ground| = (|ground_near_normal|² * |cursor_ray|) /  (ground_near_normal · cursor_ray)
-            let distance_to_ground = (cursor_near_world.y.powf(2.) * cursor_ray.length())
-                / ground_near_normal.dot(cursor_ray);
-            let ray_to_ground = cursor_ray.normalize() * distance_to_ground;
-
-            let ground_intersection = ray_to_ground + cursor_near_world;
-
-            // place our light slightly above the ground
-            let light_location = Vec3::new(ground_intersection.x, 0.1, ground_intersection.z);
-
-            for (mut transform, _) in query.q0_mut().iter_mut() {
-                transform.translation = light_location;
             }
         }
     }

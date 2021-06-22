@@ -19,7 +19,7 @@ lint:
 	-cargo audit
 
 # run all of our formatting / lints / fixes and check our various compile targets
-pre-check: format fix lint check
+pre-check: fix format lint check
 
 dev:
 	cargo run --features bevy/dynamic
