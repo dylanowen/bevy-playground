@@ -7,7 +7,7 @@ pub fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<PlayerControlled>>,
 ) {
-    for (mut transform, flycam) in query.iter_mut() {
+    for mut transform in query.iter_mut() {
         let mut move_vec = Vec3::splat(0.0);
         if keyboard_input.pressed(KeyCode::W) {
             move_vec.z -= 1.0 * MOVE_SENSITIVITY;
@@ -43,8 +43,10 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
         + 2.0 * quat.w * quat_vec.cross(vec)
 }
 
-pub fn cycle_control(
-
+pub fn cycle_control_system(
+    keyboard_input: Res<Input<KeyCode>>,
+    commands: Commands
 ) {
-
+    if keyboard_input.just_pressed(KeyCode::Insert) || keyboard_input.just_pressed(KeyCode::Grave) {
+    }
 }

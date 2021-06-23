@@ -28,7 +28,6 @@ pub struct ViewPlugin {}
 #[derive(Eq, PartialEq)]
 pub enum ViewKind {
     First,
-    Fly,
     Third,
 }
 
@@ -78,10 +77,9 @@ pub fn switch_camera_view_system(
     mut view_kind: ResMut<ViewKind>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Insert) || keyboard_input.just_pressed(KeyCode::Grave) {
-        *view_kind = match mem::replace(&mut *view_kind, ViewKind::Fly) {
+        *view_kind = match mem::replace(&mut *view_kind, ViewKind::First) {
             ViewKind::First => ViewKind::Third,
-            ViewKind::Third => ViewKind::Fly,
-            ViewKind::Fly => ViewKind::First,
+            ViewKind::Third => ViewKind::First,
         }
     }
 }
