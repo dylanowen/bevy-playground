@@ -28,6 +28,7 @@ pub struct ViewPlugin {}
 #[derive(Eq, PartialEq)]
 pub enum ViewKind {
     First,
+    Fly,
     Third,
 }
 
@@ -46,7 +47,6 @@ impl Plugin for ViewPlugin {
                 SystemSet::new()
                     .with_run_criteria(run_first_person.system())
                     .with_system(first_person_system.system())
-                    .with_system(first_person_move_system.system()),
             );
     }
 }
@@ -78,9 +78,10 @@ pub fn switch_camera_view_system(
     mut view_kind: ResMut<ViewKind>,
 ) {
     if keyboard_input.just_pressed(KeyCode::Insert) || keyboard_input.just_pressed(KeyCode::Grave) {
-        *view_kind = match mem::replace(&mut *view_kind, ViewKind::First) {
+        *view_kind = match mem::replace(&mut *view_kind, ViewKind::Fly) {
             ViewKind::First => ViewKind::Third,
-            ViewKind::Third => ViewKind::First,
+            ViewKind::Third => ViewKind::Fly,
+            ViewKind::Fly => ViewKind::First,
         }
     }
 }
@@ -191,6 +192,7 @@ pub fn first_person_system(
     }
 }
 
+/*
 pub fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<FlyCam>>,
@@ -230,3 +232,4 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
         + (quat.w * quat.w - quat_vec.dot(quat_vec)) * vec
         + 2.0 * quat.w * quat_vec.cross(vec)
 }
+*/

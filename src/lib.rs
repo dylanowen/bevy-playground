@@ -7,7 +7,8 @@ use wasm_bindgen::prelude::*;
 use crate::aim_system::{aim_system, MouseLightBundle};
 use crate::debug::Debug;
 use crate::level::Chunk;
-use crate::player::Player;
+use crate::player::{Player, PlayerControlled};
+use crate::movement::first_person_move_system;
 use crate::view_system::{UiCam, ViewPlugin};
 
 mod aim_system;
@@ -15,6 +16,7 @@ mod debug;
 mod level;
 mod player;
 mod view_system;
+mod movement;
 
 #[derive(Default)]
 struct Game {}
@@ -26,6 +28,7 @@ pub fn run() {
         .add_startup_system(setup.system())
         .add_plugin(ViewPlugin::default())
         .add_system(aim_system.system())
+        .add_system(first_person_move_system.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
