@@ -1,5 +1,6 @@
 use crate::aim_system::MouseLight;
 use crate::player::Player;
+use crate::movement::Controllable;
 use bevy::ecs::schedule::ShouldRun;
 use bevy::input::mouse::MouseMotion;
 use bevy::math::Mat2;
@@ -69,7 +70,8 @@ fn setup_view_system(mut commands: Commands) {
             pitch: 0.0,
             x_sensitivity: 0.2,
             y_sensitivity: 0.2,
-        });
+        })
+        .insert(Controllable);
 }
 
 pub fn switch_camera_view_system(

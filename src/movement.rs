@@ -3,6 +3,8 @@ use crate::player::PlayerControlled;
 
 const MOVE_SENSITIVITY: f32 = 0.2;
 
+pub struct Controllable;
+
 pub fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<PlayerControlled>>,
@@ -45,8 +47,16 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
 
 pub fn cycle_control_system(
     keyboard_input: Res<Input<KeyCode>>,
-    commands: Commands
+    mut commands: Commands,
+    mut query: Query<(Entity, Option<&PlayerControlled>), With<Controllable>>
 ) {
     if keyboard_input.just_pressed(KeyCode::Insert) || keyboard_input.just_pressed(KeyCode::Grave) {
+        for (ent, playerControlled) in query.iter_mut() {
+            if let Some(_playerControlled) = playerControlled {
+                commands.entity(ent).remove::<PlayerControlled>();
+            } else {
+                commands.entity(ent).insert(PlayerControlled);
+            }
+        }
     }
 }
