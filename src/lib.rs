@@ -7,7 +7,8 @@ use wasm_bindgen::prelude::*;
 use crate::aim_system::{aim_system, MouseLightBundle};
 use crate::debug::Debug;
 use crate::level::Chunk;
-use crate::player::Player;
+use crate::player::{Player};
+use crate::movement::{first_person_move_system, cycle_control_system, Controllable};
 use crate::view_system::{UiCam, ViewPlugin};
 
 mod aim_system;
@@ -15,6 +16,7 @@ mod debug;
 mod level;
 mod player;
 mod view_system;
+mod movement;
 
 #[derive(Default)]
 struct Game {}
@@ -26,6 +28,8 @@ pub fn run() {
         .add_startup_system(setup.system())
         .add_plugin(ViewPlugin::default())
         .add_system(aim_system.system())
+        .add_system(first_person_move_system.system())
+        .add_system(cycle_control_system.system())
         // diagnostics
         .add_plugin(Debug::default())
         .run();
@@ -69,7 +73,8 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .with_children(|tile| {
             tile.spawn_scene(character_handle.clone());
         })
-        .insert(Player);
+        .insert(Player)
+        .insert(Controllable);
 
     // build our map
     let grass_handle = asset_server.load("models.glb#Scene1");

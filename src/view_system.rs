@@ -1,5 +1,6 @@
 use crate::aim_system::MouseLight;
 use crate::player::Player;
+use crate::movement::Controllable;
 use bevy::ecs::schedule::ShouldRun;
 use bevy::input::mouse::MouseMotion;
 use bevy::math::Mat2;
@@ -46,7 +47,6 @@ impl Plugin for ViewPlugin {
                 SystemSet::new()
                     .with_run_criteria(run_first_person.system())
                     .with_system(first_person_system.system())
-                    .with_system(first_person_move_system.system()),
             );
     }
 }
@@ -70,7 +70,8 @@ fn setup_view_system(mut commands: Commands) {
             pitch: 0.0,
             x_sensitivity: 0.2,
             y_sensitivity: 0.2,
-        });
+        })
+        .insert(Controllable);
 }
 
 pub fn switch_camera_view_system(
@@ -191,6 +192,7 @@ pub fn first_person_system(
     }
 }
 
+/*
 pub fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<FlyCam>>,
@@ -230,3 +232,4 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
         + (quat.w * quat.w - quat_vec.dot(quat_vec)) * vec
         + 2.0 * quat.w * quat_vec.cross(vec)
 }
+*/
