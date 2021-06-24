@@ -1,11 +1,29 @@
-use bevy::prelude::*;
+use crate::aim_system::MouseLight;
 use crate::player::PlayerControlled;
+use crate::view_system::{run_first_person, run_third_person};
+use bevy::prelude::*;
 
 const MOVE_SENSITIVITY: f32 = 0.2;
 
-pub struct Controllable;
+#[derive(Default)]
+pub struct MovePlugin {}
 
-pub fn first_person_move_system(
+impl Plugin for MovePlugin {
+    fn build(&self, app: &mut AppBuilder) {
+        app.add_system_set(
+            SystemSet::new()
+                .with_run_criteria(run_first_person.system())
+                .with_system(first_person_move_system.system()),
+        )
+        .add_system_set(
+            SystemSet::new()
+                .with_run_criteria(run_third_person.system())
+                .with_system(third_person_move_system.system()),
+        );
+    }
+}
+
+fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     mut query: Query<&mut Transform, With<PlayerControlled>>,
 ) {
@@ -45,17 +63,29 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
         + 2.0 * quat.w * quat_vec.cross(vec)
 }
 
-pub fn cycle_control_system(
-    keyboard_input: Res<Input<KeyCode>>,
-    mut commands: Commands,
-    mut query: Query<(Entity, Option<&PlayerControlled>), With<Controllable>>
+fn third_person_move_system(
+    mouse_input: Res<Input<MouseButton>>,
+    mouse_query: Query<&GlobalTransform, With<MouseLight>>,
+    mut player_query: Query<&mut Transform, With<PlayerControlled>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::Insert) || keyboard_input.just_pressed(KeyCode::Grave) {
-        for (ent, playerControlled) in query.iter_mut() {
-            if let Some(_playerControlled) = playerControlled {
-                commands.entity(ent).remove::<PlayerControlled>();
-            } else {
-                commands.entity(ent).insert(PlayerControlled);
+    if mouse_input.pressed(MouseButton::Right) {
+        let mouse_location = mouse_query.iter().next().unwrap().translation;
+
+        for mut player_transform in player_query.iter_mut() {
+            let mut distance_vector = mouse_location - player_transform.translation;
+            distance_vector.y = 0.; // clear out vertical movement
+
+            // check to see if we're already at our location
+            if distance_vector.length() > 0. {
+                // get our move velocity
+                let mut distance_translation = distance_vector.normalize() / 5.;
+
+                // check to see if we're really close and should just step the rest of the way
+                if distance_vector.length() < distance_translation.length() {
+                    distance_translation = distance_vector;
+                }
+
+                player_transform.translation += distance_translation;
             }
         }
     }
