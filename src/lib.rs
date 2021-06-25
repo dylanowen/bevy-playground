@@ -2,6 +2,7 @@ use std::f32::consts::FRAC_PI_2;
 
 use bevy::input::system::exit_on_esc_system;
 use bevy::prelude::*;
+use bevy_rapier3d::prelude::*;
 use wasm_bindgen::prelude::*;
 
 use crate::aim_system::{aim_system, MouseLightBundle};
@@ -28,6 +29,7 @@ pub fn run() {
         .add_startup_system(setup.system())
         .add_plugin(ViewPlugin::default())
         .add_plugin(MovePlugin::default())
+        .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
         .add_system(aim_system.system())
         // diagnostics
         .add_plugin(Debug::default())
@@ -73,7 +75,18 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             tile.spawn_scene(character_handle.clone());
         })
         .insert(Player)
-        .insert(PlayerControlled);
+        .insert(PlayerControlled)
+        .insert_bundle(RigidBodyBundle {
+            position: Transform::default().translation.into(),
+            ..Default::default()
+        })
+        .insert_bundle(ColliderBundle {
+            shape: ColliderShape::cuboid(0.3, 1.7, 0.8), //i dunno what shape lol
+            collider_type: ColliderType::Solid,
+            position: Transform::default().translation.into(),
+            ..Default::default()
+        })
+        .insert(RigidBodyPositionSync::Discrete);;
 
     // build our map
     let grass_handle = asset_server.load("models.glb#Scene1");
@@ -114,6 +127,17 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                     .spawn_bundle((transform, GlobalTransform::identity()))
                     .with_children(|tile| {
                         tile.spawn_scene(grass_handle.clone());
+                    })
+                    .insert_bundle(RigidBodyBundle {
+                        body_type: RigidBodyType::Static,
+                        position: transform.translation.into(),
+                        ..Default::default()
+                    })
+                    .insert_bundle(ColliderBundle {
+                        shape: ColliderShape::cuboid(WIDTH as f32, 0.1, HEIGHT as f32), //i dunno what shape lol
+                        collider_type: ColliderType::Solid,
+                        position: transform.translation.into(),
+                        ..Default::default()
                     });
             }
         }
