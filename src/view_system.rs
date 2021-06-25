@@ -151,7 +151,7 @@ fn first_person_system(
     let mut camera = query.q2_mut().single_mut().unwrap();
     camera.rotation = rotation;
     // keep our camera at our player's head
-    camera.translation = Vec3::new(player_location.x, 1.7, player_location.z);
+    camera.translation = Vec3::new(player_location.x, player_location.y + 1.7, player_location.z);
 }
 
 #[allow(clippy::type_complexity)]

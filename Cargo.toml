@@ -28,6 +28,8 @@ rand = "0.8.4"
 
 wasm-bindgen = "0.2"
 
+bevy_rapier3d = { version = "0.10", features = [ "wasm-bindgen" ] }
+
 # Dependencies for native only.
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 bevy = {version = "0.5", default-features = false, features = ["bevy_winit", "render", "bevy_gltf", "bevy_wgpu", "x11"]}
