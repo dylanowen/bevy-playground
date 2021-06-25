@@ -45,16 +45,16 @@ fn first_person_move_system(
             move_vec.x += 1.0 * MOVE_SENSITIVITY;
         }
         if keyboard_input.pressed(KeyCode::Space) {
-            rigid_body.next_position.translation.y += 1.0 * MOVE_SENSITIVITY;
+            rigid_body.position.translation.y += 1.0 * MOVE_SENSITIVITY;
         }
         if keyboard_input.pressed(KeyCode::LShift) {
-            rigid_body.next_position.translation.y -= 1.0 * MOVE_SENSITIVITY;
+            rigid_body.position.translation.y -= 1.0 * MOVE_SENSITIVITY;
         }
 
-        let rotated_direction = rotate_vec3_by_quat(rigid_body.next_position.rotation.into(), move_vec);
-        rigid_body.next_position.translation.x += rotated_direction.x;
-        rigid_body.next_position.translation.y += rotated_direction.y;
-        rigid_body.next_position.translation.z += rotated_direction.z;
+        let rotated_direction = rotate_vec3_by_quat(rigid_body.position.rotation.into(), move_vec);
+        rigid_body.position.translation.x += rotated_direction.x;
+        rigid_body.position.translation.y += rotated_direction.y;
+        rigid_body.position.translation.z += rotated_direction.z;
     }
 }
 
@@ -69,13 +69,13 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
 fn third_person_move_system(
     mouse_input: Res<Input<MouseButton>>,
     mouse_query: Query<&GlobalTransform, With<MouseLight>>,
-    mut player_query: Query<&mut Transform, With<PlayerControlled>>,
+    mut player_query: Query<&mut RigidBodyPosition, With<PlayerControlled>>,
 ) {
     if mouse_input.pressed(MouseButton::Right) {
         let mouse_location = mouse_query.iter().next().unwrap().translation;
 
         for mut player_transform in player_query.iter_mut() {
-            let mut distance_vector = mouse_location - player_transform.translation;
+            let mut distance_vector = mouse_location - player_transform.position.translation.into();
             distance_vector.y = 0.; // clear out vertical movement
 
             // check to see if we're already at our location
@@ -88,7 +88,9 @@ fn third_person_move_system(
                     distance_translation = distance_vector;
                 }
 
-                player_transform.translation += distance_translation;
+                player_transform.position.translation.x += distance_translation.x;
+                player_transform.position.translation.y += distance_translation.z;
+                player_transform.position.translation.y += distance_translation.z;
             }
         }
     }

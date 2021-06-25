@@ -1,5 +1,6 @@
 use bevy::ecs::schedule::ShouldRun;
 use bevy::input::mouse::MouseMotion;
+use bevy_rapier3d::prelude::RigidBodyPosition;
 
 use bevy::prelude::*;
 
@@ -118,7 +119,7 @@ fn first_person_system(
     mut ev_mouse: EventReader<MouseMotion>,
     mut query: QuerySet<(
         Query<&mut FlyCam, With<GameCam>>,
-        Query<&mut Transform, With<Player>>,
+        Query<&mut RigidBodyPosition, With<Player>>,
         Query<&mut Transform, With<GameCam>>,
     )>,
 ) {
@@ -144,8 +145,8 @@ fn first_person_system(
 
     // rotate our player
     let mut player = query.q1_mut().single_mut().unwrap();
-    player.rotation = y_rotation;
-    let player_location = player.translation;
+    player.position.rotation = y_rotation.into();
+    let player_location = player.position.translation;
 
     // rotate our camera
     let mut camera = query.q2_mut().single_mut().unwrap();
