@@ -77,16 +77,16 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(Player)
         .insert(PlayerControlled)
         .insert_bundle(RigidBodyBundle {
-            position: Transform::default().translation.into(),
+            position: Vec3::new(0.0, 30.0, 0.0).into(),
             ..Default::default()
         })
         .insert_bundle(ColliderBundle {
-            shape: ColliderShape::cuboid(0.3, 1.7, 0.8), //i dunno what shape lol
+            shape: ColliderShape::cuboid(0.15, 0.85, 0.4), //i dunno what shape lol
             collider_type: ColliderType::Solid,
             position: Transform::default().translation.into(),
             ..Default::default()
         })
-        .insert(RigidBodyPositionSync::Discrete);;
+        .insert(RigidBodyPositionSync::Discrete);
 
     // build our map
     let grass_handle = asset_server.load("models.glb#Scene1");
@@ -134,7 +134,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         ..Default::default()
                     })
                     .insert_bundle(ColliderBundle {
-                        shape: ColliderShape::cuboid(WIDTH as f32, 0.1, HEIGHT as f32), //i dunno what shape lol
+                        shape: ColliderShape::cuboid(x as f32, 0.1, z as f32), //i dunno what shape lol
                         collider_type: ColliderType::Solid,
                         position: transform.translation.into(),
                         ..Default::default()
