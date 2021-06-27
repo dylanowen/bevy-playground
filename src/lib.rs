@@ -13,6 +13,7 @@ use crate::mesh_loader::{MeshLoaderPlugin, SpawnMeshAsChildCommands};
 use crate::movement::MovePlugin;
 use crate::player::{Player, PlayerControlled};
 use crate::view_system::{UiCam, ViewPlugin};
+use bevy_rapier3d::physics::TimestepMode;
 
 mod aim_system;
 mod debug;
@@ -80,12 +81,17 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
     // let character_handle = asset_server.load("models.gltf#Mesh0");
     commands
         .spawn_bundle((Transform::default(), GlobalTransform::identity()))
+        .insert("Character".to_string())
         .with_children(|builder| {
-            builder.spawn_mesh(gltf_handle.clone(), "character", false);
+            builder.spawn_mesh(gltf_handle.clone(), "character", true);
         })
         .insert(Player)
         .insert(PlayerControlled)
         .insert_bundle(RigidBodyBundle {
+            activation: RigidBodyActivation {
+                sleeping: false,
+                ..Default::default()
+            },
             body_type: RigidBodyType::Dynamic,
             position: Vec3::new(0.0, 5.0, 0.0).into(),
             ..Default::default()
@@ -94,13 +100,14 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
             shape: ColliderShape::ball(0.5), //i dunno what shape lol
             collider_type: ColliderType::Solid,
             position: Transform::default().translation.into(),
+            flags: (ActiveEvents::CONTACT_EVENTS | ActiveEvents::INTERSECTION_EVENTS).into(),
             ..Default::default()
         })
-        .insert(RigidBodyPositionSync::Discrete);
+        .insert(ColliderPositionSync::Discrete);
 
     // build our map
-    const WIDTH: usize = 10;
-    const HEIGHT: usize = 10;
+    const WIDTH: usize = 20;
+    const HEIGHT: usize = 20;
     let chunk = Chunk::<WIDTH, HEIGHT>::arena();
 
     let x_offset = (WIDTH / 2) as f32;
@@ -130,14 +137,19 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                             },
                             GlobalTransform::identity(),
                         ))
+                        .insert("Wall".to_string())
                         .with_children(|builder| {
-                            builder.spawn_mesh(gltf_handle.clone(), "wall", false);
+                            builder.spawn_mesh(gltf_handle.clone(), "wall", true);
                         })
-                        .insert_bundle(RigidBodyBundle {
-                            body_type: RigidBodyType::Static,
-                            position: wall_transform.into(),
-                            ..Default::default()
-                        })
+                        // .insert_bundle(RigidBodyBundle {
+                        //     body_type: RigidBodyType::Static,
+                        //     // activation: RigidBodyActivation {
+                        //     //     sleeping: false,
+                        //     //     ..Default::default()
+                        //     // },
+                        //     position: wall_transform.into(),
+                        //     ..Default::default()
+                        // })
                         .insert_bundle(ColliderBundle {
                             shape: ColliderShape::ball(0.5), // give ourselves a dummy shape while we derive from our mesh
                             collider_type: ColliderType::Solid,
@@ -152,6 +164,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                         Transform::from_translation(position.into()),
                         GlobalTransform::identity(),
                     ))
+                    .insert("Floor".to_string())
                     .with_children(|builder| {
                         builder.spawn_mesh(gltf_handle.clone(), "grass", false);
                     });
