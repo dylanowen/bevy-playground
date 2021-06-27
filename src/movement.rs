@@ -27,9 +27,9 @@ fn first_person_move_system(
     keyboard_input: Res<Input<KeyCode>>,
     //modified to use rigid body position instead of transform because update direction
     //is one way rigidbody -> transform
-    mut query: Query<&mut RigidBodyPosition, With<PlayerControlled>>,
+    mut query: Query<(&mut RigidBodyVelocity, &GlobalTransform), With<PlayerControlled>>,
 ) {
-    for mut rigid_body in query.iter_mut() {
+    for (mut player_velocity, player_transform) in query.iter_mut() {
         let mut move_vec = Vec3::splat(0.0);
         if keyboard_input.pressed(KeyCode::W) {
             move_vec.z -= 1.0 * MOVE_SENSITIVITY;
@@ -44,16 +44,25 @@ fn first_person_move_system(
             move_vec.x += 1.0 * MOVE_SENSITIVITY;
         }
         if keyboard_input.pressed(KeyCode::Space) {
-            rigid_body.position.translation.y += 1.0 * MOVE_SENSITIVITY;
+            move_vec.y += 1.0 * MOVE_SENSITIVITY;
         }
         if keyboard_input.pressed(KeyCode::LShift) {
-            rigid_body.position.translation.y -= 1.0 * MOVE_SENSITIVITY;
+            move_vec.y -= 1.0 * MOVE_SENSITIVITY;
         }
+        move_vec *= 20.;
 
-        let rotated_direction = rotate_vec3_by_quat(rigid_body.position.rotation.into(), move_vec);
-        rigid_body.position.translation.x += rotated_direction.x;
-        rigid_body.position.translation.y += rotated_direction.y;
-        rigid_body.position.translation.z += rotated_direction.z;
+        let rotated_direction = rotate_vec3_by_quat(player_transform.rotation.into(), move_vec);
+
+        player_velocity.linvel = Vector::new(
+            rotated_direction.x,
+            rotated_direction.y + player_velocity.linvel.y,
+            rotated_direction.z,
+        );
+
+        // Into::<Vector<Real>>::into(rotated_direction);
+        // rigid_body.position.translation.x += rotated_direction.x;
+        // rigid_body.position.translation.y += rotated_direction.y;
+        // rigid_body.position.translation.z += rotated_direction.z;
     }
 }
 
@@ -68,7 +77,7 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
 fn third_person_move_system(
     mouse_input: Res<Input<MouseButton>>,
     mouse_query: Query<&GlobalTransform, With<MouseLight>>,
-    mut player_query: Query<(&mut RigidBodyVelocity, &Transform), With<PlayerControlled>>,
+    mut player_query: Query<(&mut RigidBodyVelocity, &GlobalTransform), With<PlayerControlled>>,
 ) {
     if mouse_input.pressed(MouseButton::Right) {
         let mouse_location = mouse_query.iter().next().unwrap().translation;
@@ -87,7 +96,7 @@ fn third_person_move_system(
                     distance_translation = distance_vector;
                 }
 
-                player_velocity.linvel = distance_translation.into();
+                player_velocity.linvel = Into::<Vector<Real>>::into(distance_translation);
 
                 // player_transform.next_position.translation.x += distance_translation.x;
                 // player_transform.next_position.translation.z += distance_translation.z;
