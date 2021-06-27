@@ -6,16 +6,11 @@
     "scene" : 0,
     "scenes" : [
         {
-            "name" : "character",
+            "name" : "main",
             "nodes" : [
                 0,
                 1,
-                2
-            ]
-        },
-        {
-            "name" : "wall",
-            "nodes" : [
+                2,
                 3
             ]
         }
@@ -37,16 +32,16 @@
             ],
             "translation" : [
                 -0.004229886457324028,
-                0.8500000238418579,
+                0.5404287576675415,
                 0.0008523352444171906
             ]
         },
         {
             "name" : "Point",
             "translation" : [
-                0.21740734577178955,
+                -0.13864511251449585,
                 0.9641594290733337,
-                0.32064133882522583
+                -0.6824231743812561
             ]
         },
         {
@@ -66,7 +61,17 @@
         },
         {
             "mesh" : 2,
-            "name" : "wall"
+            "name" : "wall",
+            "scale" : [
+                1,
+                2,
+                1
+            ],
+            "translation" : [
+                0,
+                0,
+                1.81911039352417
+            ]
         }
     ],
     "materials" : [
@@ -99,7 +104,7 @@
         },
         {
             "doubleSided" : true,
-            "name" : "Material.003",
+            "name" : "Material.006",
             "pbrMetallicRoughness" : {
                 "baseColorFactor" : [
                     0.025370454415678978,

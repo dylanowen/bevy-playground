@@ -1,6 +1,5 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
-use std::mem;
 
 pub struct DebugPhysicsPlugin;
 
@@ -17,13 +16,13 @@ fn debug_physics_system(
     mut materials: ResMut<Assets<StandardMaterial>>,
     mut visibility_query: Query<(&mut Visible, &Handle<StandardMaterial>)>,
     mut collider_shapes: Query<Entity, With<ColliderShape>>,
-    mut contact_events: EventReader<ContactEvent>,
-    mut position_query: Query<(
-        Option<&String>,
-        &ColliderPosition,
-        Option<&RigidBodyPosition>,
-        &GlobalTransform,
-    )>,
+    // mut contact_events: EventReader<ContactEvent>,
+    // mut position_query: Query<(
+    //     Option<&String>,
+    //     &ColliderPosition,
+    //     Option<&RigidBodyPosition>,
+    //     &GlobalTransform,
+    // )>,
     mut commands: Commands,
 ) {
     if keyboard_input.just_pressed(KeyCode::Semicolon) {

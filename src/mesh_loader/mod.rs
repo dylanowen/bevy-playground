@@ -2,12 +2,12 @@ mod gltf;
 
 use crate::mesh_loader::gltf::EnhancedGltf;
 use bevy::ecs::system::Command;
-use bevy::gltf::{Gltf, GltfMesh};
+use bevy::gltf::{Gltf, GltfMesh, GltfPrimitive};
 use bevy::prelude::*;
 use bevy::render::mesh::{Indices, VertexAttributeValues};
 use bevy::render::pipeline::PrimitiveTopology;
 use bevy_rapier3d::prelude::*;
-use bevy_rapier3d::rapier::math::{Point, Real};
+use bevy_rapier3d::rapier::math::Point;
 use std::collections::HashMap;
 
 pub struct MeshLoaderPlugin;
@@ -24,6 +24,7 @@ impl Plugin for MeshLoaderPlugin {
 #[derive(Default)]
 struct MeshSpawner {
     meshes_to_spawn: HashMap<Handle<Gltf>, Vec<SpawnGltfMeshInfo>>,
+    physics_meshes: HashMap<Handle<Mesh>, ColliderShape>,
 }
 
 impl MeshSpawner {
@@ -37,7 +38,7 @@ impl MeshSpawner {
     ) {
         for SpawnGltfMeshInfo {
             mesh_name,
-            derive_physics_mesh,
+            derive_physics_shape,
             entity,
         } in self
             .meshes_to_spawn
@@ -76,11 +77,22 @@ impl MeshSpawner {
                 .insert(pbr.visible)
                 .insert(pbr.render_pipelines);
 
-            if derive_physics_mesh {
-                // todo cache this
+            if derive_physics_shape {
+                entity_commands.insert(self.derive_physics_shape(gltf_primitive, meshes));
+            }
+        }
+    }
 
+    fn derive_physics_shape(
+        &mut self,
+        gltf_primitive: &GltfPrimitive,
+        meshes: &Assets<Mesh>,
+    ) -> ColliderShape {
+        self.physics_meshes
+            .entry(gltf_primitive.mesh.clone_weak())
+            .or_insert_with(|| {
                 let mesh = meshes.get(&gltf_primitive.mesh).unwrap();
-                println!("deriving shape for {:?}", mesh);
+                log::trace!("Deriving Physics Shape");
 
                 match mesh.primitive_topology() {
                     PrimitiveTopology::TriangleList => {
@@ -88,33 +100,33 @@ impl MeshSpawner {
                             mesh.attribute(Mesh::ATTRIBUTE_POSITION).unwrap();
                         let positions = match vertex_position_attributes {
                             VertexAttributeValues::Float3(values) => values
-                                .into_iter()
-                                .map(|p| Into::<Point<_>>::into(p.clone()))
+                                .iter()
+                                .map(|p| Into::<Point<_>>::into(*p))
                                 .collect::<Vec<_>>(),
-                            _ => panic!("can't handle vertex type"),
+                            _ => panic!("Right now we only handle the Float3 vertex type"),
                         };
                         let indices = match mesh.indices().unwrap() {
                             Indices::U32(raw_indices) => raw_indices
                                 .chunks(3)
                                 .map(|c| [c[0], c[1], c[2]])
                                 .collect::<Vec<_>>(),
-                            _ => panic!("support u16 at some point"),
+                            Indices::U16(raw_indices) => raw_indices
+                                .chunks(3)
+                                .map(|c| [c[0] as u32, c[1] as u32, c[2] as u32])
+                                .collect::<Vec<_>>(),
                         };
 
-                        let shape = ColliderShape::trimesh(positions, indices);
-                        entity_commands.insert(shape);
+                        ColliderShape::trimesh(positions, indices)
                     }
                     unknown => {
-                        log::warn!(
-                            "we don't know how to deal with this topology: {:?}",
+                        panic!(
+                            "We can't generate a ColliderShape from this topology: {:?}",
                             unknown
-                        );
+                        )
                     }
                 }
-            }
-
-            println!("loaded gltf")
-        }
+            })
+            .clone()
     }
 }
 
@@ -127,18 +139,16 @@ fn mesh_spawner_system(
     mut commands: Commands,
 ) {
     for event in loaded_gltf.iter() {
-        match event {
-            AssetEvent::Created { handle } => {
-                spawner.created_gltf(&handle, &gltfs, &gltf_meshes, &meshes, &mut commands);
-            }
-            event => println!("other event"),
+        // ignore our other events, we already correctly update our models while running
+        if let AssetEvent::Created { handle } = event {
+            spawner.created_gltf(&handle, &gltfs, &gltf_meshes, &meshes, &mut commands);
         }
     }
 }
 
 struct SpawnGltfMeshInfo {
     mesh_name: String,
-    derive_physics_mesh: bool,
+    derive_physics_shape: bool,
     entity: Entity,
 }
 
@@ -180,7 +190,7 @@ impl<'a, 'b> SpawnMeshAsChildCommands for ChildBuilder<'a, 'b> {
             gltf_handle,
             info: SpawnGltfMeshInfo {
                 mesh_name: mesh_name.to_string(),
-                derive_physics_mesh,
+                derive_physics_shape: derive_physics_mesh,
                 entity: self.parent_entity(),
             },
         });

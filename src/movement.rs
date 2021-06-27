@@ -51,7 +51,7 @@ fn first_person_move_system(
         }
         move_vec *= 20.;
 
-        let rotated_direction = rotate_vec3_by_quat(player_transform.rotation.into(), move_vec);
+        let rotated_direction = rotate_vec3_by_quat(player_transform.rotation, move_vec);
 
         player_velocity.linvel = Vector::new(
             rotated_direction.x,
@@ -83,7 +83,7 @@ fn third_person_move_system(
         let mouse_location = mouse_query.iter().next().unwrap().translation;
 
         for (mut player_velocity, player_transform) in player_query.iter_mut() {
-            let mut distance_vector = mouse_location - player_transform.translation.into();
+            let mut distance_vector = mouse_location - player_transform.translation;
             distance_vector.y = 0.; // clear out vertical movement
 
             // check to see if we're already at our location

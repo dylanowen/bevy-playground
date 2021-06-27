@@ -13,7 +13,6 @@ use crate::mesh_loader::{MeshLoaderPlugin, SpawnMeshAsChildCommands};
 use crate::movement::MovePlugin;
 use crate::player::{Player, PlayerControlled};
 use crate::view_system::{UiCam, ViewPlugin};
-use bevy_rapier3d::physics::TimestepMode;
 
 mod aim_system;
 mod debug;
@@ -122,7 +121,7 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
                 if nx < WIDTH && nz < HEIGHT && chunk.grid[z][x] != chunk.grid[nz][nx] {
                     // todo this is gross
                     let wall_transform: Isometry<Real> = if *rotate {
-                        Isometry::new(position, Vector::y() * FRAC_PI_2).into()
+                        Isometry::new(position, Vector::y() * FRAC_PI_2)
                     } else {
                         position.into()
                     };
