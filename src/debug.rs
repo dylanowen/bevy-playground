@@ -1,7 +1,6 @@
 use bevy::diagnostic::{Diagnostics, FrameTimeDiagnosticsPlugin};
 use bevy::prelude::*;
 
-#[derive(Default)]
 pub struct Debug;
 
 impl Plugin for Debug {
