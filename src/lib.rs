@@ -7,14 +7,18 @@ use wasm_bindgen::prelude::*;
 
 use crate::aim_system::{aim_system, MouseLightBundle};
 use crate::debug::Debug;
+use crate::debug_physics::DebugPhysicsPlugin;
 use crate::level::Chunk;
+use crate::mesh_loader::{MeshLoaderPlugin, SpawnMeshAsChildCommands};
 use crate::movement::MovePlugin;
 use crate::player::{Player, PlayerControlled};
 use crate::view_system::{UiCam, ViewPlugin};
 
 mod aim_system;
 mod debug;
+mod debug_physics;
 mod level;
+mod mesh_loader;
 mod movement;
 mod player;
 mod view_system;
@@ -27,12 +31,14 @@ pub fn run() {
     default_plugins(&mut App::build())
         .add_system(exit_on_esc_system.system())
         .add_startup_system(setup.system())
-        .add_plugin(ViewPlugin::default())
-        .add_plugin(MovePlugin::default())
+        .add_plugin(ViewPlugin)
+        .add_plugin(MovePlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::default())
+        .add_plugin(MeshLoaderPlugin)
         .add_system(aim_system.system())
         // diagnostics
-        .add_plugin(Debug::default())
+        .add_plugin(Debug)
+        .add_plugin(DebugPhysicsPlugin)
         .run();
 }
 
@@ -67,21 +73,25 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         ..Default::default()
     });
 
+    let gltf_handle = asset_server.load("models.gltf");
+
     // add our character
-    let character_handle = asset_server.load("models.glb#Scene0");
+
+    // let character_handle = asset_server.load("models.gltf#Mesh0");
     commands
         .spawn_bundle((Transform::default(), GlobalTransform::identity()))
-        .with_children(|tile| {
-            tile.spawn_scene(character_handle.clone());
+        .with_children(|builder| {
+            builder.spawn_mesh(gltf_handle.clone(), "character", false);
         })
         .insert(Player)
         .insert(PlayerControlled)
         .insert_bundle(RigidBodyBundle {
-            position: Vec3::new(0.0, 30.0, 0.0).into(),
+            body_type: RigidBodyType::Dynamic,
+            position: Vec3::new(0.0, 5.0, 0.0).into(),
             ..Default::default()
         })
         .insert_bundle(ColliderBundle {
-            shape: ColliderShape::cuboid(0.15, 0.85, 0.4), //i dunno what shape lol
+            shape: ColliderShape::ball(0.5), //i dunno what shape lol
             collider_type: ColliderType::Solid,
             position: Transform::default().translation.into(),
             ..Default::default()
@@ -89,57 +99,73 @@ fn setup(mut commands: Commands, asset_server: Res<AssetServer>) {
         .insert(RigidBodyPositionSync::Discrete);
 
     // build our map
-    let grass_handle = asset_server.load("models.glb#Scene1");
-    let wall_handle = asset_server.load("models.glb#Scene2");
-
-    const WIDTH: usize = 20;
-    const HEIGHT: usize = 20;
+    const WIDTH: usize = 10;
+    const HEIGHT: usize = 10;
     let chunk = Chunk::<WIDTH, HEIGHT>::arena();
 
     let x_offset = (WIDTH / 2) as f32;
     let z_offset = (HEIGHT / 2) as f32;
     for z in 0..HEIGHT {
         for x in 0..WIDTH {
-            let transform = Transform::from_xyz(x as f32 - x_offset, 0., z as f32 - z_offset);
+            let position = Vector::new(x as f32 - x_offset, 0., z as f32 - z_offset);
 
             for (dx, dz, rotate) in [(1, 0, false), (0, 1, true)].iter() {
                 let nx = x + dx;
                 let nz = z + dz;
                 if nx < WIDTH && nz < HEIGHT && chunk.grid[z][x] != chunk.grid[nz][nx] {
                     // todo this is gross
-                    let wall_transform = if *rotate {
-                        let mut wall_transform = transform;
-                        wall_transform.rotate(Quat::from_rotation_y(-FRAC_PI_2));
-                        wall_transform
+                    let wall_transform: Isometry<Real> = if *rotate {
+                        Isometry::new(position, Vector::y() * FRAC_PI_2).into()
                     } else {
-                        Transform::from_xyz(nx as f32 - x_offset, 0., nz as f32 - z_offset)
+                        position.into()
                     };
 
+                    // todo why don't our walls work?
                     commands
-                        .spawn_bundle((wall_transform, GlobalTransform::identity()))
-                        .with_children(|tile| {
-                            tile.spawn_scene(wall_handle.clone());
+                        .spawn_bundle((
+                            Transform {
+                                translation: wall_transform.translation.into(),
+                                rotation: wall_transform.rotation.into(),
+                                ..Default::default()
+                            },
+                            GlobalTransform::identity(),
+                        ))
+                        .with_children(|builder| {
+                            builder.spawn_mesh(gltf_handle.clone(), "wall", false);
+                        })
+                        .insert_bundle(RigidBodyBundle {
+                            body_type: RigidBodyType::Static,
+                            position: wall_transform.into(),
+                            ..Default::default()
+                        })
+                        .insert_bundle(ColliderBundle {
+                            shape: ColliderShape::ball(0.5), // give ourselves a dummy shape while we derive from our mesh
+                            collider_type: ColliderType::Solid,
+                            position: wall_transform.into(),
+                            ..Default::default()
                         });
                 }
             }
             if chunk.grid[z][x] {
                 commands
-                    .spawn_bundle((transform, GlobalTransform::identity()))
-                    .with_children(|tile| {
-                        tile.spawn_scene(grass_handle.clone());
-                    })
-                    .insert_bundle(RigidBodyBundle {
-                        body_type: RigidBodyType::Static,
-                        position: transform.translation.into(),
-                        ..Default::default()
-                    })
-                    .insert_bundle(ColliderBundle {
-                        shape: ColliderShape::cuboid(x as f32, 0.1, z as f32), //i dunno what shape lol
-                        collider_type: ColliderType::Solid,
-                        position: transform.translation.into(),
-                        ..Default::default()
+                    .spawn_bundle((
+                        Transform::from_translation(position.into()),
+                        GlobalTransform::identity(),
+                    ))
+                    .with_children(|builder| {
+                        builder.spawn_mesh(gltf_handle.clone(), "grass", false);
                     });
             }
         }
     }
+
+    commands.spawn_bundle(ColliderBundle {
+        shape: ColliderShape::cuboid(WIDTH as f32, 0.1, HEIGHT as f32),
+        // todo use a height field ?
+        // shape: ColliderShape::heightfield(
+        //     DMatrix::from_vec(WIDTH, HEIGHT, vec![0.; WIDTH * HEIGHT]),
+        //     Vector::new(1., 1., 1.),
+        // ),
+        ..Default::default()
+    });
 }

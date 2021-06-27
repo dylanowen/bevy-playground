@@ -6,7 +6,7 @@ use bevy::prelude::*;
 
 use crate::player::Player;
 
-const THIRD_X_DISTANCE: f32 = 7.;
+const THIRD_X_DISTANCE: f32 = 3.;
 const THIRD_Y_DISTANCE: f32 = THIRD_X_DISTANCE;
 const MOUSE_SENSITIVITY: f32 = 0.2;
 
@@ -24,8 +24,7 @@ pub struct ThirdPersonCam {
 pub struct UiCam;
 pub struct GameCam;
 
-#[derive(Default)]
-pub struct ViewPlugin {}
+pub struct ViewPlugin;
 
 #[derive(Eq, PartialEq)]
 pub enum ViewKind {
@@ -152,7 +151,11 @@ fn first_person_system(
     let mut camera = query.q2_mut().single_mut().unwrap();
     camera.rotation = rotation;
     // keep our camera at our player's head
-    camera.translation = Vec3::new(player_location.x, player_location.y + 1.7, player_location.z);
+    camera.translation = Vec3::new(
+        player_location.x,
+        player_location.y + 1.7,
+        player_location.z,
+    );
 }
 
 #[allow(clippy::type_complexity)]

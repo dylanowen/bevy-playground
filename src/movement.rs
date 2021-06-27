@@ -2,12 +2,11 @@ use crate::aim_system::MouseLight;
 use crate::player::PlayerControlled;
 use crate::view_system::{run_first_person, run_third_person};
 use bevy::prelude::*;
-use bevy_rapier3d::prelude::RigidBodyPosition;
+use bevy_rapier3d::prelude::*;
 
 const MOVE_SENSITIVITY: f32 = 0.2;
 
-#[derive(Default)]
-pub struct MovePlugin {}
+pub struct MovePlugin;
 
 impl Plugin for MovePlugin {
     fn build(&self, app: &mut AppBuilder) {
@@ -69,28 +68,29 @@ fn rotate_vec3_by_quat(quat: Quat, vec: Vec3) -> Vec3 {
 fn third_person_move_system(
     mouse_input: Res<Input<MouseButton>>,
     mouse_query: Query<&GlobalTransform, With<MouseLight>>,
-    mut player_query: Query<&mut RigidBodyPosition, With<PlayerControlled>>,
+    mut player_query: Query<(&mut RigidBodyVelocity, &Transform), With<PlayerControlled>>,
 ) {
     if mouse_input.pressed(MouseButton::Right) {
         let mouse_location = mouse_query.iter().next().unwrap().translation;
 
-        for mut player_transform in player_query.iter_mut() {
-            let mut distance_vector = mouse_location - player_transform.position.translation.into();
+        for (mut player_velocity, player_transform) in player_query.iter_mut() {
+            let mut distance_vector = mouse_location - player_transform.translation.into();
             distance_vector.y = 0.; // clear out vertical movement
 
             // check to see if we're already at our location
             if distance_vector.length() > 0. {
                 // get our move velocity
-                let mut distance_translation = distance_vector.normalize() / 5.;
+                let mut distance_translation = distance_vector.normalize() * 4.;
 
                 // check to see if we're really close and should just step the rest of the way
                 if distance_vector.length() < distance_translation.length() {
                     distance_translation = distance_vector;
                 }
 
-                player_transform.position.translation.x += distance_translation.x;
-                player_transform.position.translation.y += distance_translation.z;
-                player_transform.position.translation.y += distance_translation.z;
+                player_velocity.linvel = distance_translation.into();
+
+                // player_transform.next_position.translation.x += distance_translation.x;
+                // player_transform.next_position.translation.z += distance_translation.z;
             }
         }
     }
